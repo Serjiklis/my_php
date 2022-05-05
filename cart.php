@@ -74,94 +74,172 @@ class User
 
 	public function getUserName()
 	{
-		return $this->name.' '.$this->surname;
+		$userName = $this->name.' '.$this->surname;
+		return $userName;
 	}
 }
 
 class Product
 {
-	private string $goodsName;
-	private int $quantity;
-	private float $price;
-	public $goods = [];
-	// метод возвращает ассоциативный масив $goods
-	public function __construct($goodsName, $price, $quantity = 1)
+	public int $goodsID;
+	public string $goodsName;
+	public int $quantity;
+	// public float $price;
+	/**
+	 * [__construct формирует данные для добавленияв корзину]
+	 * @param [integer]  $goodsID   [ID уникальный номер товара]
+	 * @param [string]  $goodsName [Название товара]
+	 * @param integer $quantity  [Количество товара, по умолчанию добавляется 1]
+	 */
+	public function __construct($goodsID, $goodsName, $quantity = 1)
 	{
+		$this->goodsID = $goodsID;
 		$this->goodsName = $goodsName;
 		$this->quantity = $quantity;
-		$this->price = $price;
-
-		$this->goods[$this->goodsName]['quantity'] = $this->quantity;
-		$this->goods[$this->goodsName]['price'] = $this->price;
-		return $this->goods;
 	}
-
-
 }
 
 class Cart
 {
+	private $userFullName;
 
-	public $products = [];
+	private $products = [];
 
-	//методпринимает на вход массив
-	public function addCart($goods)
+	private $goods = [];
+
+	public function __construct($user)
 	{
-		foreach ($this->products as $key => $value)
+		$this->userFullName = $user;
+	}
+	/**
+	 * [addProduct - добавление товаров в корзину]
+	 * @param [array] $product [содержит товар который добавляется в корзину]
+	 */
+	public function addProduct($product)
+	{
+		$product = (array)$product;
+
+		if(array_key_exists($product['goodsID'], $this->products))
 		{
-			//проверка на наличие ключа массива $goods в массиве $products
-			if(array_key_exists($key, $goods))
+			$this->products[$product['goodsID']]['quantity'] = $this->products[$product['goodsID']]['quantity'] + $product['quantity'];
+		}else
+		{
+			$this->products[$product['goodsID']] = $product;
+		}
+	}
+	/**
+	 * [delProduct - удаление товаров из корзины]
+	 * @param  integer  $goodsID  [Указывается ID товара который необходимо удалить]
+	 * @param  integer $quantity [Количество товаров для удаления, по умолчанию 1]
+	 * @return [array]            [Возвращает массив с товарами после удаления]
+	 */
+	public function delProduct($goodsID, $quantity=1)
+	{
+		if(array_key_exists($goodsID, $this->products))
+		{
+			if ($this->products[$goodsID]['quantity'] > $quantity )
 			{
-				//если такой товар уже есть в корзине получаем количество и складываем значения
-				$goods[$key]['quantity'] = $this->products[$key]['quantity'] + $goods[$key]['quantity'];
-				//объеденяем массивы с перезаписью строковых ключей
-				$this->products = array_merge($this->products, $goods);
+				$this->products[$goodsID]['quantity'] = $this->products[$goodsID]['quantity'] - $quantity;
 
-				return $this->products;
-
-			}else {
-				// добавляем массив $goods в массив $products
-				$this->products += $goods;
 				return $this->products;
 			}
+			if ($this->products[$goodsID]['quantity'] <= $quantity )
+			{
+				unset($this->products[$goodsID]);
 
+				return $this->products;
+			}
 		}
 	}
 
-	public function getCartGoods()
+
+	public function getProduct()
 	{
 		return $this->products;
 	}
+
+	public function getUser()
+	{
+		return $this->userFullName;
+	}
 }
+
 
 
 class Order
 {
+	private $user;
+	private $goods;
+	private $payment;
+	private $delivery;
 
+	public function __construct($user, $goods, $payment = 2, $delivery = 1)
+	{
+		$this->user = $user;
+		$this->goods = $goods;
+		$this->payment = $payment;
+		$this->delivery = $delivery;
+	}
+
+	public function make()
+	{
+		echo 'Получатель: ' . $this->user . '<br>';
+
+		foreach ($this->goods as $key => $value) {
+			print_ar('Название: ' . $value['goodsName']. ' / ' .'Количество: '. $value['quantity']);
+		}
+		echo 'Платежная система: ';
+		echo ($this->payment == 1) ? Monobank::PAYMENT_NAME : Liqpay::PAYMENT_NAME .  '<br>';
+		echo '<br>';
+		echo 'Служба доставки: ';
+		echo ($this->delivery == 1) ? Ukrposhta::DELIVERY_NAME : Novaposhta::DELIVERY_NAME . '<br>';
+		echo '<br>';
+	}
 }
 
-// создаем объекты товаров
-$dog = new Product('dog', 15,3);
-$cat = new Product('cat', 10);
-$bird = new Product('bird', 7,2);
+$user = new User('Anton', 'Cibulya');
+$userName = $user->getUserName();
 
-// получаем массив с товаром
-$dogGoods = $dog->goods;
-$catGoods = $cat->goods;
-$birdGoods = $bird->goods;
+//Товары
+$dog = new Product(10, 'Grifon');
+$cat = new Product(12, 'Cat');
+$bird = new Product(14, 'Bird');
 
-//проверка структуры массива
-print_ar($catGoods);
+//Корзина
+$cart = new Cart($userName);
 
-//создаем козину
-$cart = new Cart();
+//Объект пользователя для передачи в Ордер
+$user = $cart->getUser();
 
-//добавляем полученные товары в виде массивов в корзину
-$cart->addCart($dogGoods);
-$cart->addCart($catGoods);
-$cart->addCart($birdGoods);
-$cart->addCart($dogGoods);
+//Добавляем товары в корзину
+$cart->addProduct($dog);
+$cart->addProduct($dog);
+$cart->addProduct($cat);
+$cart->addProduct($bird);
+$cart->addProduct($bird);
+$cart->addProduct($bird);
+$cart->addProduct($cat);
+$cart->addProduct($cat);
+$cart->addProduct($cat);
+$cart->addProduct($cat);
 
-print_ar($cart);
+//Выводим товары на экран
+print_ar($cart->getProduct());
 
+//Удаляем часть товаров
+$cart->delProduct(12);
+$cart->delProduct(12);
+$cart->delProduct(14);
+$cart->delProduct(10);
 
+//Выывод на экран после удаления
+print_ar($cart->getProduct());
+
+//формируем данные для оформления заказа
+$goods = $cart->getProduct();
+
+//создаем заказ
+$order = new Order($user, $goods);
+
+//Вывод данных по заказу на экран
+$order->make();
